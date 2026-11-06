@@ -1,0 +1,57 @@
+. "$HOME/.cargo/env"
+
+# Read by EVERY zsh: interactive or not, `ssh host cmd`, cron, scripts, tmux plugins.
+# It must print NOTHING (check: ssh host 'zsh -c "" 2>&1 | wc -c' prints 0).
+# Keep only what non-interactive shells also need, and keep each directory minimal
+# (one tool per directory) so nothing else can be shadowed by accident.
+
+# === per-OS zsh selector ===
+# One $HOME shared by several Linux flavours (NFS home), but a zsh binary is not portable
+# between them. Private per-OS builds live in ~/.local/bin.os/<id><major>-<arch>/ ; if none
+# exists for this OS we fall through to the distro's own zsh.
+() {
+  emulate -L zsh
+  local id= ver= line
+  if [[ -r /etc/os-release ]]; then
+    while IFS= read -r line; do
+      case $line in
+        ID=*)         id=${${line#ID=}//\"/}         ;;
+        VERSION_ID=*) ver=${${line#VERSION_ID=}//\"/} ;;
+      esac
+    done < /etc/os-release
+  fi
+  export JH_OSTAG="${id:-unknown}${ver%%.*}-$CPUTYPE"
+  local d=$HOME/.local/bin.os/$JH_OSTAG
+  [[ -d $d ]] && path=($d ${path:#$d})
+}
+
+# === tmux on the non-interactive PATH ===
+# tmux plugins invoke `tmux` from PATH, and an old client (2.7) cannot talk to a newer
+# server (3.x). Contexts that never read ~/.zshrc (cron, systemd, `ssh host tmux ...`,
+# continuum's restore at server start) would otherwise get the distro tmux and every
+# plugin would fail. The first existing directory wins; it contains tmux only.
+() {
+  emulate -L zsh
+  local d
+  for d in /opt/shared/tmux/bin $HOME/.local/tmux/bin; do
+    if [[ -x $d/tmux ]]; then
+      path=($d ${path:#$d})
+      break
+    fi
+  done
+}
+
+# === nvim on the non-interactive PATH ===
+# `ssh host nvim ...` must work: remote GUIs and other tooling spawn nvim through a
+# NON-interactive shell, which never reads ~/.zshrc and so never sees ~/.local/bin. Only the
+# nvim bin dir is added; it holds a single executable, so nothing else can be shadowed.
+() {
+  emulate -L zsh
+  local d
+  for d in /opt/shared/nvim/bin $HOME/.local/nvim/bin; do
+    if [[ -x $d/nvim ]]; then
+      path=($d ${path:#$d})
+      break
+    fi
+  done
+}

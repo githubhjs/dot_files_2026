@@ -1,0 +1,172 @@
+# tmux 3.x config from an offline work-server setup (comments rewritten for this public copy).
+
+# true colour (tmux > 2.2)
+set-option -sa terminal-overrides ",xterm*:Tc"
+set -g default-terminal screen-256color
+set-option -ga terminal-overrides ",*256col*:Tc"
+
+######################## MOUSE ##################################
+# Full mouse support: click to select pane/window, drag borders, wheel scroll
+set -g mouse on
+
+# Wheel scroll enters copy-mode and scrolls history instead of sending arrows
+bind -n WheelUpPane if-shell -F -t = "#{mouse_any_flag}" "send-keys -M" "if -Ft= '#{pane_in_mode}' 'send-keys -M' 'copy-mode -e'"
+
+# Drag to select, release to copy
+bind -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-selection-no-clear
+
+# Double/triple click select word/line
+bind -T copy-mode-vi DoubleClick1Pane send-keys -X select-word
+bind -T copy-mode-vi TripleClick1Pane send-keys -X select-line
+
+# Bigger scrollback so mouse scrolling is useful
+set -g history-limit 50000
+
+######################## NON-VOLATILE SCROLLBACK ################
+# tmux keeps scrollback in server memory ONLY: an OOM kill or `kill -9` of the server destroys every
+# pane's history. Two optional layers (the helper scripts are NOT part of this public copy):
+#   LAYER 1: a periodic `capture-pane -S -` snapshot of every pane, gzipped, rotated, with a disk
+#            budget. A 50000-line pane gzips to roughly 130 KB. tmux-resurrect captures the same text
+#            but keeps only the most recent copy.
+#   LAYER 2: a key (prefix + P) that toggles byte-exact logging of ONE pane with `pipe-pane`. Opt-in,
+#            because a full-screen TUI writes tens of MB per hour of screen redraws.
+# set -g @snapshot-interval '300'
+# run-shell -b '~/.tmux/scripts/tmux-scrollback-snapshot.sh "#{socket_path}"'
+# bind P if -F '#{pane_pipe}' \
+#   'pipe-pane ; display-message "pane log OFF"' \
+#   'pipe-pane -o "~/.tmux/scripts/tmux-pane-logger.sh ~/.tmux/panelogs/#{session_name}-#{window_index}-#{pane_index} 104857600 5" ; display-message "pane log ON"'
+
+######################## RELOAD #################################
+# prefix + r reloads this file. Safe to repeat: every option is set with `set -g` (replace, not append),
+# status-right is rebuilt from scratch each time, and the continuum hook is re-asserted by a guarded
+# if-shell at the end, so sourcing twice does not duplicate anything.
+bind r source-file ~/.tmux.conf \; display-message "~/.tmux.conf reloaded"
+
+######################## WINDOW NAMES ###########################
+# Left alone, tmux names a window after the whole command line, which makes unreadable status entries.
+# Directory basename while sitting at a shell prompt, command name while something is running.
+setw -g automatic-rename on
+setw -g automatic-rename-format '#{?#{m:*sh,#{pane_current_command}},#{b:pane_current_path},#{pane_current_command}}'
+
+######################## TPM ####################################
+# Offline hosts: TPM can never clone anything, so every plugin is unpacked by hand into
+# ~/.tmux/plugins/. TPM still loads the ones whose directory name matches the repo name; the theme
+# does not (see below), so it is loaded explicitly after tpm runs.
+set -g @plugin 'tmux-plugins/tpm'
+set -g @plugin 'tmux-plugins/tmux-sensible'
+set -g @plugin 'tmux-plugins/tmux-resurrect'
+set -g @plugin 'tmux-plugins/tmux-cpu'
+
+# resurrect: keep the text in each pane; vim/nvim restore their own session
+set -g @resurrect-processes 'ssh psql mysql sqlite3'
+set -g @resurrect-capture-pane-contents 'on'
+set -g @resurrect-strategy-vim 'session'
+set -g @resurrect-strategy-nvim 'session'
+
+# continuum: automatic periodic save, and restore when the tmux server starts. Its save hook is injected
+# into status-right and fires on the status-line refresh, so the status line must be ON and
+# status-interval non-zero, or the timer never runs.
+set -g @continuum-restore 'on'
+set -g @continuum-save-interval '15'
+set -g status on
+set -g status-interval 15
+
+# Initialize TMUX plugin manager
+run '~/.tmux/plugins/tpm/tpm'
+
+######################## THEME, THEN CONTINUUM ##################
+# dracula/tmux and catppuccin/tmux are both repositories literally named "tmux", so under TPM they would
+# both want ~/.tmux/plugins/tmux and collide. Offline they are unpacked by hand under distinct names, and
+# exactly ONE is loaded here; two themes both rewriting status-left/right fight over it.
+# Active theme: catppuccin. To go back to dracula, comment out the catppuccin block (down to the tmux-cpu
+# re-run) and uncomment:  run-shell '~/.tmux/plugins/dracula-tmux/dracula.tmux'
+
+set -g @catppuccin_window_left_separator ""
+set -g @catppuccin_window_right_separator " "
+set -g @catppuccin_window_middle_separator " █"
+set -g @catppuccin_window_number_position "right"
+set -g @catppuccin_window_default_fill "number"
+# This catppuccin names the non-current tab text @catppuccin_window_text. The old name
+# @catppuccin_window_default_text is silently ignored, which leaves every non-current tab on the plugin
+# default (the PANE TITLE, which zsh fills with the whole command line). Show the window name instead,
+# capped at 10 characters so the tabs stay clickable.
+set -g @catppuccin_window_text "#{=10:window_name}"
+set -g @catppuccin_window_current_fill "number"
+set -g @catppuccin_window_current_text "#{=10:window_name}"
+set -g @catppuccin_window_flags "icon"
+set -g @catppuccin_window_flags_icon_current "󰖯"
+set -g @catppuccin_window_flags_icon_last "󰖰"
+set -g @catppuccin_window_flags_icon_activity "󱅫"
+set -g @catppuccin_status_left_separator  " "
+set -g @catppuccin_status_right_separator ""
+set -g @catppuccin_status_right_separator_inverse "no"
+set -g @catppuccin_status_fill "icon"
+set -g @catppuccin_status_connect_separator "no"
+set -g @catppuccin_directory_text "#{pane_current_path}"
+
+run-shell '~/.tmux/plugins/catppuccin-tmux/catppuccin.tmux'
+
+# This catppuccin does not assemble status-right from a module list; each status/*.conf is sourced and then
+# explicitly concatenated (see its README, "Custom Status Line").
+source -q ~/.tmux/plugins/catppuccin-tmux/status/application.conf
+source -q ~/.tmux/plugins/catppuccin-tmux/status/date_time.conf
+source -q ~/.tmux/plugins/catppuccin-tmux/status/cpu.conf
+source -q ~/.tmux/plugins/catppuccin-tmux/status/ram.conf
+source -q ~/.tmux/plugins/catppuccin-tmux/status/session.conf
+source -q ~/.tmux/plugins/catppuccin-tmux/status/host.conf
+set -g @catppuccin_ram_color "#{E:@thm_green}"
+
+# Long session names swamp the status line; truncate what the session module prints.
+set -g @catppuccin_session_text " #{=18:session_name}"
+
+# Date as 2026Oct22-11h13. Must come before status-right is assembled below.
+set -g @catppuccin_date_time_text " %Y%b%d-%Hh%M"
+
+# The application module prints the current pane's command, the same thing the current window tab says.
+set -g @catppuccin_application_text " #{pane_current_command}"
+
+# tmux-cpu's colour scripts echo back whatever @cpu_*_color holds, with no expansion pass. catppuccin's
+# default "#{E:@thm_fg}" style templates would render as literal garbage, so give tmux-cpu plain hex
+# colours from the mocha palette.
+set -g @cpu_low_fg_color "#cdd6f4"
+set -g @cpu_medium_fg_color "#cdd6f4"
+set -g @cpu_high_fg_color "#11111b"
+set -g @cpu_low_bg_color "#313244"
+set -g @cpu_medium_bg_color "#313244"
+set -g @cpu_high_bg_color "#f38ba8"
+set -g @ram_low_fg_color "#cdd6f4"
+set -g @ram_medium_fg_color "#cdd6f4"
+set -g @ram_high_fg_color "#11111b"
+set -g @ram_low_bg_color "#313244"
+set -g @ram_medium_bg_color "#313244"
+set -g @ram_high_bg_color "#f38ba8"
+
+# catppuccin does not touch status-left, so without this it stays on tmux's default "[#{session_name}] "
+# with status-left-length 10, which truncates long session names into garbage. Show the host instead: it
+# is short and genuinely useful when several machines share one $HOME.
+set -g status-left-length 60
+set -g status-left "#{E:@catppuccin_status_host}"
+
+set -g status-right-length 100
+set -g status-right "#{E:@catppuccin_status_application}"
+set -agF status-right "#{E:@catppuccin_status_date_time}"
+set -agF status-right "#{E:@catppuccin_status_cpu}"
+set -agF status-right "#{E:@catppuccin_status_ram}"
+set -ag status-right "#{E:@catppuccin_status_session}"
+
+# tmux-cpu does a ONE-TIME literal find/replace of "#{cpu_percentage}" and friends in status-right at
+# plugin-init time (it is not a live re-evaluation). So it has to run again AFTER status-right is
+# assembled above; the TPM-triggered run fired while status-right was still the old default and would
+# leave those tokens unresolved forever.
+run '~/.tmux/plugins/tmux-cpu/cpu.tmux'
+
+# continuum MUST load after the theme. It prepends its save hook to status-right, and a theme that
+# rewrites status-right afterwards would wipe the hook and silently disable the automatic save.
+run-shell '~/.tmux/plugins/tmux-continuum/continuum.tmux'
+
+# ...and then verify it, because ordering alone is not reliable (observed: identical config on two hosts,
+# hook present on one and absent on the other). continuum will not prepend a second time once it has run,
+# so if the theme clobbered status-right in between, the hook is gone for good. Appending it here is
+# idempotent (guarded) and position-independent: the hook only has to be evaluated on each status refresh.
+if-shell '[ -z "$(tmux show -gv status-right | grep continuum_save)" ]' \
+  'set -ag status-right "#(~/.tmux/plugins/tmux-continuum/scripts/continuum_save.sh)"'

@@ -1,0 +1,274 @@
+" Vim 8.2 config from a work-server setup (HDL / EDA flavoured), condensed for this public copy:
+" large commented-out blocks (an old custom diff expression, a custom tabline) were dropped, and two
+" known problems were fixed and marked "FIX". Escape characters are written as \<Esc> instead of raw
+" bytes so the file survives copy and paste.
+
+if has("multi_byte")
+    set encoding=utf-8
+    let $LANG="en.UTF-8"
+    set termencoding=utf-8
+    set fileencoding=utf-8
+    set fileencodings=utf-8,big5
+else
+    echoerr "Sorry, this version of (g)vim was not compiled with multi_byte"
+endif
+
+filetype plugin indent on
+if !exists("autocommands_loaded")
+    let autocommands_loaded = 1
+    autocmd! BufNewFile,BufRead *.f,*.vi,*.vs,*.vb,*.vh,*.tsk,*.vn         :set ft=verilog
+    autocmd! BufNewFile,BufRead                          *.svi,*.sva,*.svh :set ft=verilog_systemverilog
+    autocmd! BufNewFile,BufRead *.do,*.cpf,*.lec,*.dc                      :set ft=tcl
+    autocmd! BufNewFile,BufRead *.hc,*.hm,*.ht,*.hv                        :set ft=c
+    autocmd! BufNewFile,BufRead *.mem                                      :set ft=hex
+    autocmd! BufNewFile,BufRead *.cir                                      :set ft=spice
+    autocmd! BufNewFile,BufRead *.tcshrc,*.cshrc                           :set ft=tcsh
+    autocmd! BufNewFile,BufRead *.syn,*.scr,*.pt,*synopsys*                :set ft=synopsys
+    autocmd! BufNewFile,BufRead COMMIT_EDITMSG                             :set ft=git
+    autocmd! BufNewFile,BufRead *.zu,*.zwt                                 :set ft=zimbu
+endif
+
+set number
+set relativenumber
+set nowrap
+
+if &t_Co > 2 || has("gui_running")
+  syntax on
+  set hlsearch
+endif
+
+if has("gui_running")
+    source $VIMRUNTIME/mswin.vim
+    behav mswin
+    colors darkblue
+    nunmap <C-A>
+elseif (&t_Co == 88)
+    colors transparent
+else
+    colors torte
+    colorscheme spacecamp
+
+    " eliminate ANSI colour code errors; enable true colour
+    if has("termguicolors")
+        let &t_8f = "\<Esc>[38;2;%lu;%lu;%lum"
+        let &t_8b = "\<Esc>[48;2;%lu;%lu;%lum"
+        set termguicolors
+    endif
+endif
+
+" Plug DirDiff: default exclude pattern
+let g:DirDiffExcludes = "CVS,*.class,*.exe,.*.swp,tmp.*,xrun.*,xvlog.*,*.bak,ucli.*,novas.*,simv,csrc,.ale*,*.log,.*.sw?"
+
+set incsearch
+set nocompatible
+set backspace=indent,eol,start
+set autoindent
+set history=50
+set ruler
+set showcmd
+map Q gq
+
+set smarttab expandtab
+set tabstop=8 shiftwidth=4
+set wildignore=*.o,*.obj,*.bak,*.exe
+
+let &titleold=expand("%:t:~")
+
+if !has("gui_running")
+    if !has('nvim')
+        set ttymouse=xterm2
+    endif
+    set mouse=a   " disables copying to the clipboard; hold SHIFT while selecting to copy
+    set mousemodel=popup
+    if $TERM =~ 'screen*'
+        if !has('nvim')
+            set term=xterm
+        endif
+        set title
+        " raw ESC sequences, written with \<Esc> so they are visible and copy-safe
+        exe "set t_ts=\<Esc>k"
+        exe "set t_fs=\<Esc>\\"
+        autocmd BufEnter * :set title | let &titlestring = 'vi:' .  expand('%:t:~') . ' | ./' . expand('%:h:~')
+        autocmd VimLeave * :set notitle
+        exe "set t_AB=\<Esc>[48;5;%dm"
+        exe "set t_AF=\<Esc>[38;5;%dm"
+    endif
+    autocmd BufEnter * :set title | let &titlestring = 'vi:' .  expand('%:t:~') . ' | ./' . expand('%:h:~')
+    set title
+else
+    autocmd BufEnter * :set title | let &titlestring = expand('%:t:~') . ' | ./' . expand('%:h:~')
+    set title
+endif
+
+set  notitle
+set wildmenu
+set wildmode=list:longest,full
+
+behav mswin
+set matchpairs+=<:>
+set matchpairs+==:;
+
+nmap <silent> <F2> <Plug>ToggleProject
+
+set textwidth=0
+
+autocmd FileType make set noexpandtab softtabstop=0 shiftwidth=8
+au BufNewFile,BufRead *.html,*.htm,*.shtml,*.tpl      setf html
+au VimEnter *.vimp nested Project <afile>|q
+au VimEnter *.proj nested Project <afile>|q
+
+" Remember: ' marks for 10 files, " 100 lines per register, : 20 command lines, % buffer list
+set viminfo='10,\"100,:20,%,n~/.viminfo
+
+" open all folds
+set foldlevel=20
+set foldmethod=marker
+
+" when we reload, restore the cursor to the saved position
+augroup JumpCursorOnEdit
+ au!
+ autocmd BufReadPost *
+ \ if expand("<afile>:p:h") !=? $TEMP |
+ \ if line("'\"") > 1 && line("'\"") <= line("$") |
+ \ let JumpCursorOnEdit_foo = line("'\"") |
+ \ let b:doopenfold = 1 |
+ \ if (foldlevel(JumpCursorOnEdit_foo) > foldlevel(JumpCursorOnEdit_foo - 1)) |
+ \ let JumpCursorOnEdit_foo = JumpCursorOnEdit_foo - 1 |
+ \ let b:doopenfold = 2 |
+ \ endif |
+ \ exe JumpCursorOnEdit_foo |
+ \ endif |
+ \ endif
+ " Need to postpone using "zv" until after reading the modelines.
+ autocmd BufWinEnter *
+ \ if exists("b:doopenfold") |
+ \ exe "normal zv" |
+ \ if(b:doopenfold > 1) |
+ \ exe "+".1 |
+ \ endif |
+ \ unlet b:doopenfold |
+ \ endif
+augroup END
+
+" --- plugin manager (vim-plug) ---
+call plug#begin('~/.vim/plugged')
+Plug 'junegunn/vim-plug'
+Plug 'vim-scripts/verilog_emacsauto.vim'
+Plug 'vim-scripts/systemverilog.vim'
+Plug 'vim-scripts/automatic-for-Verilog'
+Plug 'githubhjs/verilog_systemverilog_fix'
+Plug 'githubhjs/nerdtree'
+Plug 'githubhjs/VisIncr'
+Plug 'githubhjs/vim-session'
+Plug 'githubhjs/vim-misc'
+Plug 'tpope/vim-fugitive'
+Plug 'tpope/vim-sensible'
+Plug 'godlygeek/tabular'
+Plug 'junegunn/vim-easy-align'
+Plug 'luochen1990/rainbow'
+Plug 'vim-airline/vim-airline'
+Plug 'vim-airline/vim-airline-themes'
+Plug 'Yggdroot/indentLine'
+Plug 'vim-syntastic/syntastic'
+Plug 'dense-analysis/ale'
+Plug 'dsimidzija/vim-nerdtree-ignore'
+Plug 'vim-scripts/LargeFile'
+Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
+Plug 'junegunn/fzf.vim'
+Plug 'will133/vim-dirdiff'
+Plug 'jaredgorski/spacecamp'
+call plug#end()
+
+" FIX 2026: Vim only reads `mapleader`, never `g:leader`. The original `let g:leader = ","` did nothing,
+" so the <leader> mappings below were on backslash. Set it BEFORE the mappings that use <leader>.
+let mapleader = ","
+
+" vim-easy-align: visual `ga =` / normal `gaip =`. This shadows the built-in `ga` (:ascii),
+" which is remapped to ,a so the character-code lookup stays reachable.
+xmap ga <Plug>(EasyAlign)
+nmap ga <Plug>(EasyAlign)
+nnoremap ,a :ascii<CR>
+
+" ALE: lint SystemVerilog with verilator only
+au FileType verilog                   let g:ale_linters = {'systemverilog' : ['verilator'],}
+au FileType verilog_systemverilog_fix let g:ale_linters = {'systemverilog' : ['verilator'],}
+au FileType verilog_systemverilog     let g:ale_linters = {'systemverilog' : ['verilator'],}
+au FileType systemverilog             let g:ale_linters = {'systemverilog' : ['verilator'],}
+
+set fileformat=unix
+set expandtab
+set shiftwidth=4
+set tabstop=4
+set smartindent
+set incsearch
+set hlsearch
+
+" NOTE: the original F4/F5 maps ended with a trailing space, which Vim sends as a key (a space is
+" a valid Normal-mode command). They are written without it here.
+map <F4> :RtlTree<CR>
+map <F5> <C-w><C-w>
+
+set ignorecase smartcase
+
+" quick reload / edit of the vimrc, tab navigation, NERDTree
+nmap ,s :source $MYVIMRC
+nmap ,v :e $MYVIMRC
+nmap ,n :tabnext<CR>:<BS>
+nmap ,p :tabprev<CR>:<BS>
+nmap ,m :tabprev<CR>:<BS>
+nmap ,t :tabnew<CR>:<BS>
+nmap ,e :NERDTreeToggle<CR>
+
+" NERDTree ignore list: tool output directories and files
+let NERDTreeIgnore = ['\.pyc$', '\.bak$', '\.sw?$', 'csrc$', 'simv.daidir$', 'verdiLog$', 'xcelium.d$', 'command.log', 'novas.conf', 'novas.rc', 'novas_dump.log', 'tmp.in', 'tmp.out', 'ucli.key', 'vcs.log', 'xrun.history']
+
+set statusline=%F%m%r%h%w\ [FMT=%{&ff}]\ [FT=%Y]\ [ASC=\%03.3b]\ [HEX=\%02.2B]\ [POS=%04l,%04v][%p%%]\ [LEN=%L]
+
+" gf must not treat a comma as part of a file name
+set isfname-=,
+
+" highlight the current line and column; colour changes with insert mode
+set                             cursorline
+autocmd VimEnter    * highlight clear                 CursorLine
+autocmd VimEnter    * highlight CursorLine   ctermbg=232 guibg=#000050 guifg=fg
+autocmd InsertEnter * highlight CursorLine   ctermbg=232 guibg=#000050 guifg=fg
+autocmd InsertLeave * highlight CursorLine   ctermbg=232 guibg=#004000 guifg=fg
+
+set                             cursorcolumn
+autocmd VimEnter    * highlight clear                 CursorColumn
+autocmd VimEnter    * highlight CursorColumn ctermbg=232 guibg=#000050 guifg=fg
+autocmd InsertEnter * highlight CursorColumn ctermbg=232 guibg=#000050 guifg=fg
+autocmd InsertLeave * highlight CursorColumn ctermbg=232 guibg=#004000 guifg=fg
+
+let g:session_autoload = 'no'
+
+" Airline
+let g:airline_powerline_fonts = 1
+let g:airline_theme = 'powerlineish'
+let g:airline#extensions#tabline#enabled = 1
+let g:airline#extensions#tabline#formatter = 'unique_tail'
+
+" New .v / .sv files get a header template with <<name>>, <<date>>, <<filename>>, <<modulename>>
+" filled in. FIX 2026: guard with filereadable(); on a host without the template the original raised
+" E484 / E486 on every new file.
+function AddTemplate(tmpl_file)
+    let f = expand(a:tmpl_file)
+    if !filereadable(f)
+        return
+    endif
+    exe "0read " . f
+    let substDict = {}
+    let substDict["name"] = $USER
+    let substDict["date"] = strftime("%a, %d %b %Y %H:%M:%S %z")
+    let substDict["filename"] = expand('%:t')
+    let substDict["modulename"] = expand('%:r')
+    exe '%s/<<\([^>]*\)>>/\=substDict[submatch(1)]/g'
+    set nomodified
+    normal G
+endfunction
+autocmd BufNewFile *.v,*.sv call AddTemplate("~/tmpl/tmpl")
+
+" fzf (without <CR>, so you can type a pattern after the command)
+nnoremap <leader>fl :Lines
+nnoremap <leader>ff :Files
+nnoremap <leader>fa :Ag

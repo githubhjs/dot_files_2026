@@ -1,0 +1,124 @@
+# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+fi
+
+export ZSH_DISABLE_COMPFIX=true
+export ZSH=$HOME/.oh-my-zsh
+
+# dedup_env_var lives in ~/.zsh_functions
+. ~/.zsh_functions
+
+export COLORTERM="truecolor"
+ZSH_THEME="powerlevel10k/powerlevel10k"
+
+# Offline hosts: never let oh-my-zsh try the network
+DISABLE_AUTO_UPDATE="true"
+COMPLETION_WAITING_DOTS="true"
+set -o ignoreeof                 # Ctrl-D does not close the shell
+TZ='Asia/Taipei'; export TZ
+export LC_ALL=en_CA.UTF-8
+export LANGUAGE=en_CA
+
+# --- history ---
+HIST_STAMPS="yyyy-mm-dd"
+HISTFILE="$HOME/.zsh_history"
+HISTSIZE=100000
+SAVEHIST=100000
+setopt extendedglob
+setopt BANG_HIST                 # Treat the '!' character specially during expansion.
+setopt EXTENDED_HISTORY          # Write the history file in the ":start:elapsed;command" format.
+setopt INC_APPEND_HISTORY        # Write to the history file immediately, not when the shell exits.
+setopt SHARE_HISTORY             # Share history between all sessions.
+setopt HIST_EXPIRE_DUPS_FIRST    # Expire duplicate entries first when trimming history.
+setopt HIST_IGNORE_DUPS          # Don't record an entry that was just recorded again.
+setopt HIST_IGNORE_ALL_DUPS      # Delete old recorded entry if new entry is a duplicate.
+setopt HIST_FIND_NO_DUPS         # Do not display a line previously found.
+setopt HIST_IGNORE_SPACE         # Don't record an entry starting with a space.
+setopt HIST_SAVE_NO_DUPS         # Don't write duplicate entries in the history file.
+setopt HIST_REDUCE_BLANKS        # Remove superfluous blanks before recording entry.
+setopt HIST_VERIFY               # Don't execute immediately upon history expansion.
+setopt HIST_BEEP                 # Beep when accessing nonexistent history.
+bindkey "\033[1~" beginning-of-line
+bindkey "\033[4~" end-of-line
+
+# --- oh-my-zsh plugins (the last three are third-party, unpacked by hand into $ZSH/custom/plugins) ---
+plugins=( \
+    aliases autoenv colorize common-aliases cp colored-man-pages dircycle emoji-clock \
+    git history screen timer tmuxinator themes copypath vim-interaction virtualenv yum z \
+    zsh-autosuggestions zsh-interactive-cd zsh-syntax-highlighting \
+    )
+plugins+=(zsh-vi-mode)
+
+autoload -U zmv
+source $ZSH/oh-my-zsh.sh
+export EDITOR='vim'
+setopt NOBeep
+unsetopt caseglob
+setopt interactivecomments       # allow # comments at the interactive prompt
+bindkey '\ep' history-beginning-search-backward   # Alt-p
+bindkey '\en' history-beginning-search-forward    # Alt-n
+mkbak () { mv $* $*".bak" }
+
+PROMPT="$PROMPT\$(vi_mode_prompt_info)"
+
+# --- site-specific environment goes here (module system, job scheduler, tool installs, ...) ---
+# [ -f ~/.alias ] && source ~/.alias
+# [ -f ~/eda-init.bash ] && source ~/eda-init.bash
+export PATH=$HOME/.local/bin:$PATH
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/.local/lib
+
+# Remove duplicate entries from colon-separated variables
+dedup_env_var LD_LIBRARY_PATH
+dedup_env_var FPATH
+dedup_env_var PATH
+
+# >>> conda / nvm / autoenv initialisation blocks go here; they all prepend to PATH <<<
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+
+# ===========================================================================
+# Everything below MUST stay at the very end of .zshrc.
+# Earlier sourced files (site scripts, conda, nvm, a JDK) keep rebuilding PATH.
+# ===========================================================================
+
+# 1. The per-OS zsh directory goes back to the front (it contains zsh binaries only).
+if [[ -n $JH_OSTAG && -d $HOME/.local/bin.os/$JH_OSTAG ]]; then
+  path=($HOME/.local/bin.os/$JH_OSTAG ${path:#$HOME/.local/bin.os/$JH_OSTAG})
+fi
+
+# 2. Prompt theme config
+[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+
+# 3. Modern CLI tools take precedence. Anaconda alone ships an old rg (12.x) and jq (1.6)
+#    that would otherwise win. Only these tools are in this directory, so nothing else is shadowed.
+if [[ -d $HOME/.local/bin.tools ]]; then
+  path=($HOME/.local/bin.tools ${path:#$HOME/.local/bin.tools})
+fi
+# oh-my-zsh's common-aliases defines `fd` as a find wrapper when no fd binary was on PATH at
+# plugin-load time (always true here, because PATH is extended later). Drop it once real fd exists.
+(( $+commands[fd] )) && unalias fd 2>/dev/null
+
+# 4. fzf integration. Must be at the END: fzf is only resolvable after the PATH fixes above.
+#    fzf >= 0.48 ships its own zsh integration (`fzf --zsh`); an older fzf (0.44) prints
+#    "unknown option: --zsh", so probe first.
+if (( $+commands[fzf] )) && fzf --zsh >/dev/null 2>&1; then
+  source <(fzf --zsh)
+
+  # fd for file/dir listing: respects .gitignore, much faster than find.
+  export FZF_DEFAULT_COMMAND='fd --type f --hidden --follow --exclude .git'
+  export FZF_DEFAULT_OPTS='--cycle --height=60% --layout=reverse --border --info=inline'
+
+  # Ctrl-T: insert a file path, previewed with bat (first 200 lines only, so a huge file cannot
+  #         stall the preview pane)
+  export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+  export FZF_CTRL_T_OPTS="--preview 'bat -p --color=always --line-range :200 {}' --preview-window=right,60%,border-left"
+
+  # Alt-C: cd into a directory, previewed as a two-level tree
+  export FZF_ALT_C_COMMAND='fd --type d --hidden --follow --exclude .git'
+  export FZF_ALT_C_OPTS="--preview 'eza --tree --level=2 --color=always {}'"
+
+  # Ctrl-R: history search; the preview wraps long commands so you can read the whole thing
+  export FZF_CTRL_R_OPTS="--preview 'echo {}' --preview-window=down,3,wrap --bind 'ctrl-/:toggle-preview'"
+fi

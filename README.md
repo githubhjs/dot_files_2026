@@ -6,6 +6,7 @@ What changed against `dot.hjs`:
 
 - `gx10/.zshrc`, `.bashrc`, `.gitconfig`, `.tmux.conf`, `.vimrc` replaced by the live versions; `.zshenv`, `.profile` and `.aider.conf.yml` refreshed.
 - New: `gx10/.p10k.zsh` and `gx10/.config/nvim/` (LazyVim starter, `LICENSE` omitted).
+- New: [`examples/work-servers/`](examples/work-servers/): a sanitized set of worked examples (zsh, tmux, Vim, offline Neovim, git, p10k diff) from a pair of air-gapped work servers; company-specific details are removed, see its README.
 - Notes were extended with a "Version 2" section (corrections and extra measured findings) in `docs/ENV_NOTES.md`; the fzf block now probes `fzf --zsh` before sourcing it, and zoxide is optional.
 - Added on top: guarded zsh history/aliases/fzf/zoxide block with PATH de-duplication, tmux-continuum re-run after the status line, longer tmux scrollback and true colour, git `diff3` plus an include for host-specific settings, `.zshenv` PATH for non-interactive shells.
 

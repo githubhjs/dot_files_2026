@@ -1,0 +1,39 @@
+#!/bin/zsh
+# Generic aliases from a work-server setup. Site-specific aliases (job scheduler shortcuts, EDA tool
+# command lines, internal repository paths) are intentionally left out of this public copy.
+alias v='vim -p'                 # one tab per file
+alias gv='gvim -p'
+alias le=less
+alias ll='eza -l --icons=auto'
+alias datime="date +'%F_%Hh%M'"                    # timestamp for file names
+alias datimeu="date +'%F_%Hh%M'|sed 's#-#_#g'"
+alias j='jobs -l'
+alias vd='vimdiff -c "set diffopt+=iwhite"'        # vimdiff ignoring white space
+alias newtmux="tmux new -t \"tmux-$HOSTNAME-`date -R`.tmux\""
+alias szc='source ~/.zshrc'
+alias soz='source ~/.zshrc'
+alias m=make
+unrpm() {
+    rpm2cpio $1 | cpio -idmv
+}
+
+# --- neovim ---------------------------------------------------------------
+# `g` is already oh-my-zsh's git alias, so the editor gets `n`.
+alias n='nvim'
+alias nq='nvim-qt'               # needs an X display
+
+# eza replaces ll/la/lt only. `ls` itself is intentionally untouched, because scripts parse its
+# output and eza's differs.
+alias la='eza -la --icons=auto'
+# --git cost 11 s in a large repository (libgit2 is queried per entry), and 25-56 s in a bigger one,
+# against about 11 ms without it. So it is NOT on the everyday ll/la; use these when the git columns
+# are actually wanted.
+alias llg='eza -l --git'
+alias lag='eza -la --git'
+alias lt='eza --tree --level=2 --icons=auto'
+alias lg='eza -l --sort=modified --icons=auto'
+
+# `ls -ltr` / `ls -ltra` in eza form. eza's -t is --time and takes an argument, so the literal
+# `ll -tra` cannot work. --sort=modified is ascending, i.e. newest at the bottom, like ls -ltr.
+alias lltr='eza -l --sort=modified --icons=auto'
+alias lltra='eza -la --sort=modified --icons=auto'

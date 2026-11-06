@@ -1,0 +1,29 @@
+## Thin per-host ~/.gitconfig. The real content is version controlled in a shared repository and
+## pulled in by the include below, so several hosts (an NFS home plus a machine with its own local
+## home) cannot silently drift apart.
+#
+# Edit the SHARED settings in the shared file, not here. It is committed, so a change made once is
+# seen everywhere.
+#
+# If that repository is ever unreachable the include is silently ignored and git still runs (measured
+# on git 2.31.1: `git status` rc=0), falling back to bare git defaults.
+# Properties this relies on, all measured on git 2.31.1: a missing include is ignored, a key AFTER an
+# include overrides the included value, and multi-valued keys accumulate.
+
+[include]
+    path = ~/shared-config/gitconfig/common
+
+# ----------------------------------------------------------------------
+# HOST-LOCAL OVERRIDES -- keep below this line.
+# Keys here win over the include. `git config --global <k> <v>` appends here automatically, which is
+# the right home for an ad-hoc tweak. Intentionally empty.
+# ----------------------------------------------------------------------
+
+# What the shared file typically contains (kept here as a checklist):
+#   [core]    pager = delta
+#   [interactive] diffFilter = delta --color-only
+#   [delta]   navigate = true, line-numbers = true
+#   [merge]   conflictStyle = diff3     # NOT zdiff3: that needs git 2.35 and is fatal on 2.31
+#   [alias]   lg, lol, lola, s = status -uno, sd = status ., j = tab separated one-line log
+#   [credential] prefer a keyring or `gh auth git-credential`; `store` keeps plain-text credentials
+#                in ~/.git-credentials
