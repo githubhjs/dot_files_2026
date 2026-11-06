@@ -187,7 +187,8 @@ fi
 
 # fzf: Ctrl-T files (bat preview), Ctrl-R history, Alt-C directories (tree preview).
 # fzf >= 0.48 ships its own zsh integration, so no separate key-bindings file is needed.
-if (( $+commands[fzf] )); then
+# Older fzf (for example 0.44) answers "unknown option: --zsh", so probe before sourcing.
+if (( $+commands[fzf] )) && fzf --zsh >/dev/null 2>&1; then
   source <(fzf --zsh)
   local _fd=${commands[fd]:-${commands[fdfind]}}
   [[ -n $_fd ]] && export FZF_DEFAULT_COMMAND="$_fd --type f --hidden --follow --exclude .git"
@@ -199,7 +200,8 @@ if (( $+commands[fzf] )); then
   export FZF_CTRL_R_OPTS="--preview 'echo {}' --preview-window=down,3,wrap --bind 'ctrl-/:toggle-preview'"
 fi
 
-# zoxide: smarter cd (installed tools are only useful once they are hooked in)
+# zoxide: optional smarter cd, only if installed. Skipping it is a valid choice: the oh-my-zsh
+# `z` plugin keeps its own directory database, and running both just splits your history.
 (( $+commands[zoxide] )) && eval "$(zoxide init zsh)"
 
 # Remove duplicate PATH entries, keeping the first occurrence (the order set above wins)
