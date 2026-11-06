@@ -1,6 +1,14 @@
-# dot.hjs
+# dot_files_2026
 
-Personal dotfiles — primarily from **GX10** (ASUS GB10 Superchip, `192.168.2.93`, Ubuntu).
+Personal dotfiles, 2026 edition. This repository starts from [`dot.hjs`](https://github.com/githubhjs/dot.hjs) (full history kept; a repository cannot be forked into the same account, so it was copied and pushed as a new one). The current GX10 files in `gx10/` were overwritten with the live ones from the machine, and a set of ideas from a dev-environment study was folded in; see [`docs/ENV_NOTES.md`](docs/ENV_NOTES.md). Files outside `gx10/` are the historical ones from the original repository and are untouched.
+
+What changed against `dot.hjs`:
+
+- `gx10/.zshrc`, `.bashrc`, `.gitconfig`, `.tmux.conf`, `.vimrc` replaced by the live versions; `.zshenv`, `.profile` and `.aider.conf.yml` refreshed.
+- New: `gx10/.p10k.zsh` and `gx10/.config/nvim/` (LazyVim starter, `LICENSE` omitted).
+- Added on top: guarded zsh history/aliases/fzf/zoxide block with PATH de-duplication, tmux-continuum re-run after the status line, longer tmux scrollback and true colour, git `diff3` plus an include for host-specific settings, `.zshenv` PATH for non-interactive shells.
+
+Originally: personal dotfiles — primarily from **GX10** (ASUS GB10 Superchip, `192.168.2.93`, Ubuntu).
 
 ---
 
@@ -37,7 +45,7 @@ Machine-specific files live under `gx10/` to avoid clobbering historical configs
 
 ## Vim config (.vimrc)
 
-Configured but **not yet deployed on GX10** — kept here as reference and for future setup.
+Live config on GX10 is `gx10/.vimrc`; the root `.vimrc` is the older reference copy.
 
 Plugin manager: [vim-plug](https://github.com/junegunn/vim-plug)
 
@@ -93,10 +101,10 @@ Secrets and runtime state are never committed:
 ## Syncing from GX10
 
 ```bash
-cd /path/to/dot.hjs
+cd /path/to/dot_files_2026
 rsync -a /home/hjs/.claude/settings.json   .claude/
 rsync -a /home/hjs/.gemini/skills/         .gemini/skills/
 rsync -a /home/hjs/.gemini/settings.json   .gemini/
 cp /home/hjs/.zshrc /home/hjs/.bashrc /home/hjs/.vimrc /home/hjs/.tmux.conf /home/hjs/.gitconfig /home/hjs/.aider.conf.yml gx10/
-git add -A && git commit -m "sync gx10 $(date +%Y-%m-%d)" && git push origin master
+git add -A && git commit -m "sync gx10 $(date +%Y-%m-%d)" && git push origin main
 ```

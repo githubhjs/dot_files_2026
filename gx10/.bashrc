@@ -132,3 +132,7 @@ export PATH="$HOME/.npm-global/bin:$PATH"
 alias gam="/home/hjs/bin/gam7/gam"
 
 . "$HOME/.local/bin/env"
+
+# deno (installed for yt-dlp JS runtime support)
+export DENO_INSTALL="$HOME/.deno"
+export PATH="$DENO_INSTALL/bin:$PATH"

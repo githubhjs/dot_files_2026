@@ -52,3 +52,27 @@
 
 [push]
     recurseSubmodules = check
+[credential "https://github.com"]
+	helper = 
+	helper = !/usr/bin/gh auth git-credential
+[credential "https://gist.github.com"]
+	helper =
+	helper = !/usr/bin/gh auth git-credential
+
+# --- Added 2026 (see docs/ENV_NOTES.md) -------------------------------------
+[merge]
+    # diff3 works on every git; zdiff3 needs git >= 2.35 and makes merge/rebase fail on older ones
+    conflictStyle = diff3
+
+# Pager: delta when installed (https://github.com/dandavison/delta). Uncomment once it is on PATH.
+# [core]
+#     pager = delta
+# [interactive]
+#     diffFilter = delta --color-only
+# [delta]
+#     navigate = true
+#     line-numbers = true
+
+# Host-specific settings go last so they override everything above. A missing file is ignored.
+[include]
+    path = ~/.gitconfig.local

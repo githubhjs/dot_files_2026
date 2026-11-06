@@ -18,6 +18,9 @@ call plug#end()
 " --- End Vim-Plug ---
 
 " Basic settings
+set encoding=utf-8
+set fileencoding=utf-8
+set fileencodings=ucs-bom,utf-8,big5,gbk,default,latin1
 set number
 set relativenumber
 syntax on
